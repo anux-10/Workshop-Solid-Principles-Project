@@ -1,0 +1,13 @@
+# .gitignore
+bin/
+obj/
+*.user
+*.suo
+.vs/
+.idea/
+
+# Demo databases and outbox files (created at runtime)
+*.db
+*.db-shm
+*.db-wal
+notifications.log

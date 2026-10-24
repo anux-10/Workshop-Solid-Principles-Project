@@ -1,0 +1,56 @@
+# V1 (bad) - every request below works, but some of them should not.
+# Use the REST Client extension in VS Code, or Rider/Visual Studio's .http support.
+
+@host = http://localhost:5081
+@orderId = paste-an-order-id-here
+
+### List orders
+GET {{host}}/api/orders
+
+### Create a Premium order (10% discount)
+POST {{host}}/api/orders
+Content-Type: application/json
+
+{
+  "customer": { "name": "Ada Lovelace", "email": "ada@example.com", "tier": "Premium" },
+  "items": [
+    { "sku": "KB-01", "name": "Mechanical keyboard", "unitPrice": 120, "quantity": 2 }
+  ]
+}
+
+### 500 - SQL injection: the name is concatenated into the INSERT
+POST {{host}}/api/orders
+Content-Type: application/json
+
+{
+  "customer": { "name": "O'Brien", "email": "obrien@example.com", "tier": "Premium" },
+  "items": [
+    { "sku": "KB-01", "name": "Mechanical keyboard", "unitPrice": 120, "quantity": 2 }
+  ]
+}
+
+### 500 - LSP: RefundOrder.AddItem() throws
+POST {{host}}/api/orders/{{orderId}}/refund
+
+### 500 - LSP: CashOnDeliveryProcessor is not really a PaymentProcessor
+POST {{host}}/api/orders/{{orderId}}/pay
+Content-Type: application/json
+
+{ "method": "cod" }
+
+### 200 - no state machine: cancel the same order twice
+POST {{host}}/api/orders/{{orderId}}/cancel
+
+### 201 with a 0% discount - unknown tier is accepted silently
+POST {{host}}/api/orders
+Content-Type: application/json
+
+{
+  "customer": { "name": "Goldie", "email": "gold@example.com", "tier": "Gold" },
+  "items": [
+    { "sku": "CH-01", "name": "USB-C cable", "unitPrice": 100, "quantity": 1 }
+  ]
+}
+
+### Sales report (depends on the fat IOrderOperations interface)
+GET {{host}}/api/reports/sales

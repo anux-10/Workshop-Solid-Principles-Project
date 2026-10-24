@@ -1,0 +1,478 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Order Management · V1 (bad SOLID)</title>
+<style>
+  :root {
+    --bg: #0b0d12;
+    --panel: #141821;
+    --panel-2: #1b202b;
+    --border: #2a3140;
+    --text: #e7ebf3;
+    --muted: #8b94a7;
+    --accent: #ff6b6b;
+    --accent-2: #ffb86b;
+    --green: #4ade80;
+    --blue: #7dd3fc;
+    --mono: ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 28px clamp(16px, 4vw, 48px) 64px;
+    background:
+      radial-gradient(1100px 400px at 10% -10%, rgba(255,107,107,.12), transparent 60%),
+      var(--bg);
+    color: var(--text);
+    font: 15px/1.55 "Segoe UI", system-ui, -apple-system, sans-serif;
+  }
+  header {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    align-items: flex-end;
+    justify-content: space-between;
+    margin-bottom: 24px;
+  }
+  h1 { margin: 0; font-size: 30px; letter-spacing: -.02em; }
+  .sub { margin: 4px 0 0; color: var(--muted); }
+  .badges { display: flex; gap: 10px; flex-wrap: wrap; }
+  .badge {
+    display: inline-block;
+    padding: 7px 12px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    border: 1px solid transparent;
+  }
+  .badge.bad { background: rgba(255,107,107,.14); color: var(--accent); border-color: rgba(255,107,107,.4); }
+  .badge.good { background: rgba(74,222,128,.12); color: var(--green); border-color: rgba(74,222,128,.35); }
+  .badge.link { color: var(--text); border-color: var(--border); background: var(--panel); text-decoration: none; letter-spacing: .02em; text-transform: none; font-weight: 600; }
+  .badge.link:hover { border-color: var(--muted); }
+
+  main { display: grid; grid-template-columns: minmax(340px, 460px) 1fr; gap: 20px; align-items: start; }
+  @media (max-width: 980px) { main { grid-template-columns: 1fr; } }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+  }
+  .panel h2 { margin: 0 0 14px; font-size: 17px; }
+  h3 { margin: 0 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+
+  label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+  input, select {
+    width: 100%;
+    margin-top: 4px;
+    padding: 9px 10px;
+    color: var(--text);
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    font: inherit;
+    font-size: 14px;
+  }
+  input:focus, select:focus { outline: 2px solid rgba(255,107,107,.45); outline-offset: 1px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  @media (max-width: 520px) { .grid2 { grid-template-columns: 1fr; } }
+
+  table { width: 100%; border-collapse: collapse; }
+  th {
+    text-align: left;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--muted);
+    font-weight: 600;
+    padding: 0 4px 6px;
+  }
+  td { padding: 3px 4px; vertical-align: top; }
+  .items input { margin-top: 0; padding: 7px 8px; font-size: 13px; }
+  .items .price, .items .qty { width: 82px; }
+  .icon-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius: 8px;
+    width: 30px; height: 30px;
+    cursor: pointer;
+  }
+  .icon-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+  .row { display: flex; gap: 10px; align-items: center; margin-top: 12px; }
+  .row .spacer { flex: 1; }
+  button.primary, button.ghost {
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    border-radius: 10px;
+    padding: 9px 14px;
+    cursor: pointer;
+    border: 1px solid transparent;
+  }
+  button.primary { background: var(--accent); color: #1a0a0a; }
+  button.primary:hover { filter: brightness(1.08); }
+  button.ghost { background: transparent; color: var(--text); border-color: var(--border); }
+  button.ghost:hover { border-color: var(--muted); }
+  button:disabled { opacity: .38; cursor: not-allowed; }
+
+  .hints { margin-top: 18px; padding: 14px; border: 1px dashed var(--border); border-radius: 12px; background: rgba(255,184,107,.04); }
+  .hints ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 13px; }
+  .hints li { margin: 5px 0; }
+  .hints code { color: var(--accent-2); font-family: var(--mono); font-size: 12px; }
+
+  .list-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .list-head h2 { margin: 0; }
+
+  .order {
+    border: 1px solid var(--border);
+    border-radius: 13px;
+    padding: 14px 16px;
+    margin-bottom: 12px;
+    background: var(--panel-2);
+  }
+  .order-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
+  .order-who { font-weight: 700; }
+  .order-meta { color: var(--muted); font-size: 12px; font-family: var(--mono); }
+  .chip {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    padding: 3px 9px;
+    border-radius: 999px;
+    border: 1px solid;
+  }
+  .chip.Confirmed { color: var(--green); border-color: rgba(74,222,128,.4); background: rgba(74,222,128,.08); }
+  .chip.Cancelled { color: var(--muted); border-color: var(--border); background: rgba(255,255,255,.02); }
+  .chip.Refunded { color: var(--blue); border-color: rgba(125,211,252,.4); background: rgba(125,211,252,.08); }
+  .chip.Pending { color: var(--accent-2); border-color: rgba(255,184,107,.4); }
+
+  .order table { margin: 10px 0 6px; font-size: 13px; }
+  .order td { color: var(--muted); }
+  .order td:first-child, .order td:nth-child(2) { color: var(--text); }
+  .totals { display: flex; flex-wrap: wrap; gap: 14px; font-size: 13px; color: var(--muted); margin: 6px 0 10px; }
+  .totals b { color: var(--text); }
+  .totals .grand b { color: var(--accent-2); }
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  .actions button {
+    font: inherit; font-size: 12px; font-weight: 600;
+    padding: 6px 11px;
+    border-radius: 8px;
+    cursor: pointer;
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .actions button:hover { border-color: var(--accent); color: var(--accent); }
+  .actions button.danger:hover { border-color: var(--accent); color: var(--accent); }
+  .empty { color: var(--muted); text-align: center; padding: 26px 0; margin: 0; }
+
+  .report {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+  @media (max-width: 700px) { .report { grid-template-columns: repeat(2, 1fr); } }
+  .stat { background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; }
+  .stat span { display: block; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .07em; }
+  .stat b { font-size: 17px; font-variant-numeric: tabular-nums; }
+
+  .log-panel { margin-top: 20px; }
+  #log {
+    margin: 0;
+    max-height: 220px;
+    overflow: auto;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    color: var(--muted);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  #log .ok { color: var(--green); }
+  #log .err { color: var(--accent); }
+  #notice { min-height: 20px; font-size: 13px; margin-top: 6px; color: var(--muted); }
+  #notice.error { color: var(--accent); }
+  a { color: var(--blue); }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Order Management</h1>
+    <p class="sub">Same API, same UI, opposite design. This one is the cautionary tale.</p>
+  </div>
+  <div class="badges">
+    <span class="badge bad">V1 · violates SOLID</span>
+    <a class="badge link" href="http://localhost:5082" target="_blank" rel="noreferrer">Open V2 (fixed) →</a>
+  </div>
+</header>
+
+<main>
+  <section class="panel">
+    <h2>New order</h2>
+    <form id="order-form">
+      <div class="grid2">
+        <label>Customer name
+          <input id="name" value="Ada Lovelace" autocomplete="off" required>
+        </label>
+        <label>E-mail
+          <input id="email" type="email" value="ada@example.com" autocomplete="off" required>
+        </label>
+      </div>
+
+      <label>Tier
+        <select id="tier">
+          <option value="Standard">Standard · 0%</option>
+          <option value="Premium" selected>Premium · 10%</option>
+          <option value="Vip">VIP · 20%</option>
+          <option value="Gold">Gold · unsupported tier (experiment)</option>
+        </select>
+      </label>
+
+      <h3 style="margin-top:18px">Items</h3>
+      <table class="items">
+        <thead>
+          <tr><th>SKU</th><th>Item</th><th>Price</th><th>Qty</th><th></th></tr>
+        </thead>
+        <tbody id="items"></tbody>
+      </table>
+
+      <div class="row">
+        <button type="button" class="ghost" id="add-item">+ Add item</button>
+        <span class="spacer"></span>
+        <button type="submit" class="primary">Create order</button>
+      </div>
+    </form>
+
+    <div class="hints">
+      <h3>Try to break this version</h3>
+      <ul>
+        <li>Name the customer <code>O'Brien</code> → 500, because the name is concatenated into SQL.</li>
+        <li>Create an order, then press <b>Refund</b> → 500, because <code>RefundOrder.AddItem()</code> throws.</li>
+        <li>Press <b>Pay · cash on delivery</b> → 500, because COD "is" a payment processor that cannot charge.</li>
+        <li>Pick tier <code>Gold</code> → accepted silently with a 0% discount.</li>
+        <li>Set quantity <code>0</code> → accepted; nobody validates it.</li>
+        <li>Press <b>Cancel</b> twice → both succeed; there is no state machine.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="list-head">
+      <h2>Orders</h2>
+      <button class="ghost" id="refresh">Refresh</button>
+    </div>
+    <div id="orders"><p class="empty">No orders yet.</p></div>
+
+    <div class="report" id="report">
+      <div class="stat"><span>Orders</span><b id="stat-count">0</b></div>
+      <div class="stat"><span>Revenue</span><b id="stat-revenue">$0.00</b></div>
+      <div class="stat"><span>Discounts</span><b id="stat-discount">$0.00</b></div>
+      <div class="stat"><span>Avg order</span><b id="stat-avg">$0.00</b></div>
+    </div>
+  </section>
+</main>
+
+<section class="panel log-panel">
+  <h2>Request log</h2>
+  <div id="notice">Ready.</div>
+  <pre id="log"></pre>
+</section>
+
+<script>
+  // V1: final states are not disabled on purpose - the API will happily accept them.
+  const LOCK_FINAL_STATES = false;
+
+  const money = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
+  const esc = (value) => String(value ?? "").replace(/[&<>"']/g, (ch) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+  })[ch]);
+
+  const itemsBody = document.getElementById("items");
+  const ordersEl = document.getElementById("orders");
+  const noticeEl = document.getElementById("notice");
+  const logEl = document.getElementById("log");
+
+  function notice(message, isError = false) {
+    noticeEl.textContent = message;
+    noticeEl.className = isError ? "error" : "";
+  }
+
+  function log(method, url, status, payload) {
+    const line = document.createElement("div");
+    line.className = status >= 400 ? "err" : "ok";
+    const body = payload == null ? "" : " " + (typeof payload === "string" ? payload : JSON.stringify(payload));
+    line.textContent = `${new Date().toLocaleTimeString()}  ${method} ${url} -> ${status}${body}`;
+    logEl.prepend(line);
+  }
+
+  async function call(method, url, body) {
+    const response = await fetch(url, {
+      method,
+      headers: body === undefined ? {} : { "Content-Type": "application/json" },
+      body: body === undefined ? undefined : JSON.stringify(body)
+    });
+
+    const text = await response.text();
+    let data = null;
+    try { data = text ? JSON.parse(text) : null; } catch { data = text; }
+
+    log(method, url, response.status, data);
+
+    if (!response.ok) {
+      const detail = (data && (data.detail || data.title)) || (typeof data === "string" ? data : "") || response.statusText;
+      throw new Error(`${response.status} · ${detail}`);
+    }
+
+    return data;
+  }
+
+  function addItemRow(item = { sku: "KB-01", name: "Mechanical keyboard", unitPrice: 120, quantity: 1 }) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td><input data-f="sku" value="${esc(item.sku)}" placeholder="SKU"></td>
+      <td><input data-f="name" value="${esc(item.name)}" placeholder="Item name"></td>
+      <td><input data-f="price" class="price" type="number" step="0.01" value="${esc(item.unitPrice)}"></td>
+      <td><input data-f="qty" class="qty" type="number" step="1" value="${esc(item.quantity)}"></td>
+      <td><button type="button" class="icon-btn" title="Remove">×</button></td>`;
+    tr.querySelector(".icon-btn").addEventListener("click", () => tr.remove());
+    itemsBody.appendChild(tr);
+  }
+
+  function readItems() {
+    return [...itemsBody.querySelectorAll("tr")].map((tr) => ({
+      sku: tr.querySelector('[data-f="sku"]').value,
+      name: tr.querySelector('[data-f="name"]').value,
+      unitPrice: Number(tr.querySelector('[data-f="price"]').value || 0),
+      quantity: Number(tr.querySelector('[data-f="qty"]').value || 0)
+    }));
+  }
+
+  function renderOrder(order) {
+    const items = (order.items || []).map((item) => `
+      <tr>
+        <td>${esc(item.sku)}</td>
+        <td>${esc(item.name)}</td>
+        <td>${money.format(item.unitPrice)} × ${item.quantity}</td>
+        <td>${money.format(item.unitPrice * item.quantity)}</td>
+      </tr>`).join("");
+
+    const locked = LOCK_FINAL_STATES && order.status !== "Confirmed";
+    const actions = [
+      `<button data-action="cancel" data-id="${order.id}" ${locked ? "disabled" : ""}>Cancel</button>`,
+      `<button data-action="refund" data-id="${order.id}" ${locked ? "disabled" : ""}>Refund</button>`,
+      `<button data-action="pay-card" data-id="${order.id}">Pay · card</button>`,
+      `<button data-action="pay-cod" data-id="${order.id}">Pay · cash on delivery</button>`
+    ].join("");
+
+    const card = document.createElement("article");
+    card.className = "order";
+    card.innerHTML = `
+      <div class="order-head">
+        <div>
+          <div class="order-who">${esc(order.customerName)} <span class="order-meta">· ${esc(order.tier)}</span></div>
+          <div class="order-meta">${esc(order.customerEmail)} · ${esc(String(order.id).slice(0, 8))} · ${new Date(order.createdAt).toLocaleString()}</div>
+        </div>
+        <span class="chip ${esc(order.status)}">${esc(order.status)}</span>
+      </div>
+      <table>${items}</table>
+      <div class="totals">
+        <span>Subtotal <b>${money.format(order.subtotal)}</b></span>
+        <span>Discount <b>−${money.format(order.discount)}</b></span>
+        <span>Tax <b>${money.format(order.tax)}</b></span>
+        <span class="grand">Total <b>${money.format(order.total)}</b></span>
+      </div>
+      <div class="actions">${actions}</div>`;
+    return card;
+  }
+
+  async function refresh() {
+    const orders = await call("GET", "/api/orders");
+    ordersEl.replaceChildren();
+    if (!orders || orders.length === 0) {
+      ordersEl.innerHTML = '<p class="empty">No orders yet.</p>';
+      return;
+    }
+    orders.forEach((order) => ordersEl.appendChild(renderOrder(order)));
+  }
+
+  async function refreshReport() {
+    try {
+      const report = await call("GET", "/api/reports/sales");
+      document.getElementById("stat-count").textContent = report.orderCount;
+      document.getElementById("stat-revenue").textContent = money.format(report.grossRevenue);
+      document.getElementById("stat-discount").textContent = money.format(report.totalDiscount);
+      document.getElementById("stat-avg").textContent = money.format(report.averageOrderValue);
+    } catch (error) {
+      notice(error.message, true);
+    }
+  }
+
+  async function reloadAll() {
+    await refresh();
+    await refreshReport();
+  }
+
+  document.getElementById("add-item").addEventListener("click", () => addItemRow({ sku: "", name: "", unitPrice: 25, quantity: 1 }));
+
+  document.getElementById("order-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    try {
+      const payload = {
+        customer: {
+          name: document.getElementById("name").value,
+          email: document.getElementById("email").value,
+          tier: document.getElementById("tier").value
+        },
+        items: readItems()
+      };
+      const order = await call("POST", "/api/orders", payload);
+      notice(`Order ${order.id.slice(0, 8)} created · total ${money.format(order.total)}`);
+      await reloadAll();
+    } catch (error) {
+      notice(error.message, true);
+    }
+  });
+
+  ordersEl.addEventListener("click", async (event) => {
+    const button = event.target.closest("button[data-action]");
+    if (!button) return;
+
+    const { action, id } = button.dataset;
+    try {
+      if (action === "cancel") {
+        await call("POST", `/api/orders/${id}/cancel`);
+        notice("Order cancelled.");
+      } else if (action === "refund") {
+        await call("POST", `/api/orders/${id}/refund`);
+        notice("Refund issued.");
+      } else {
+        const receipt = await call("POST", `/api/orders/${id}/pay`, {
+          method: action === "pay-cod" ? "cod" : "card"
+        });
+        notice(`Payment ${receipt.reference} · ${receipt.status}`);
+      }
+      await reloadAll();
+    } catch (error) {
+      notice(error.message, true);
+    }
+  });
+
+  document.getElementById("refresh").addEventListener("click", () => reloadAll().catch((error) => notice(error.message, true)));
+
+  addItemRow();
+  reloadAll().catch((error) => notice(error.message, true));
+</script>
+</body>
+</html>

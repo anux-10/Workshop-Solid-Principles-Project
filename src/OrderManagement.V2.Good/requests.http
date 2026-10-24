@@ -1,0 +1,73 @@
+# V2 (fixed) - the same requests as V1, with the correct outcomes.
+# Use the REST Client extension in VS Code, or Rider/Visual Studio's .http support.
+
+@host = http://localhost:5082
+@orderId = paste-an-order-id-here
+
+### List orders
+GET {{host}}/api/orders
+
+### 201 - Premium order (10% discount, 8% tax)
+POST {{host}}/api/orders
+Content-Type: application/json
+
+{
+  "customer": { "name": "Ada Lovelace", "email": "ada@example.com", "tier": "Premium" },
+  "items": [
+    { "sku": "KB-01", "name": "Mechanical keyboard", "unitPrice": 120, "quantity": 2 }
+  ]
+}
+
+### 201 - the same name, now a SQL parameter
+POST {{host}}/api/orders
+Content-Type: application/json
+
+{
+  "customer": { "name": "O'Brien", "email": "obrien@example.com", "tier": "Premium" },
+  "items": [
+    { "sku": "KB-01", "name": "Mechanical keyboard", "unitPrice": 120, "quantity": 2 }
+  ]
+}
+
+### 400 - unknown tier is rejected at the boundary
+POST {{host}}/api/orders
+Content-Type: application/json
+
+{
+  "customer": { "name": "Goldie", "email": "gold@example.com", "tier": "Gold" },
+  "items": [
+    { "sku": "CH-01", "name": "USB-C cable", "unitPrice": 100, "quantity": 1 }
+  ]
+}
+
+### 400 - item validation (quantity must be 1..100)
+POST {{host}}/api/orders
+Content-Type: application/json
+
+{
+  "customer": { "name": "Ada Lovelace", "email": "ada@example.com", "tier": "Premium" },
+  "items": [
+    { "sku": "KB-01", "name": "Mechanical keyboard", "unitPrice": 120, "quantity": 0 }
+  ]
+}
+
+### 200 - refund works: the order is an aggregate, not a lying subclass
+POST {{host}}/api/orders/{{orderId}}/refund
+
+### 200 with DueOnDelivery - an honest payment contract
+POST {{host}}/api/orders/{{orderId}}/pay
+Content-Type: application/json
+
+{ "method": "cod" }
+
+### 409 - cancel twice: the aggregate enforces the state machine
+POST {{host}}/api/orders/{{orderId}}/cancel
+
+### 200 - card payment (Captured)
+POST {{host}}/api/orders/{{orderId}}/pay
+Content-Type: application/json
+
+{ "method": "card" }
+
+### Sales report (depends on IOrderRepository only)
+GET {{host}}/api/reports/sales
